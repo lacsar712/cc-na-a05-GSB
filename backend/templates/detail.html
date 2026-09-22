@@ -4,5 +4,44 @@
 <p class="{% if row.verdict == '合格' %}ok{% else %}bad{% endif %}">{{ row.verdict }} · {{ row.note }}</p>
 <p>实测光强 {{ row.measured_cd }}，要求 {{ row.required_cd }}，方位偏差 {{ row.bearing_error_deg }} 度</p>
 <p>登记人 {{ row.created_by }}</p>
-<p><a href="{% url 'list' %}">返回列表</a></p>
+
+{% if can_write %}
+<h2>改正实测亮度</h2>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form class="card" method="post" action="{% url 'correct' row.pk %}">
+  {% csrf_token %}
+  <label>实测光强（坎德拉）</label>
+  <input name="measured_cd" type="number" step="0.1" value="{{ row.measured_cd }}" />
+  <button type="submit">改正亮度</button>
+</form>
+
+<h2>签发回执</h2>
+<p>按当前实测状态签发一张回执存档，签发后正文与校验短串不再变动。</p>
+<form method="post" action="{% url 'issue_receipt' row.pk %}">
+  {% csrf_token %}
+  <button type="submit">签发回执</button>
+</form>
+{% endif %}
+
+<h2>本条已签发的回执</h2>
+<table>
+  <thead><tr><th>回执号</th><th>实测光强</th><th>结论</th><th>说明</th><th>签发时刻</th><th>校验短串</th><th></th></tr></thead>
+  <tbody>
+  {% for receipt in row.receipts.all %}
+    <tr>
+      <td>R-{{ receipt.pk }}</td>
+      <td>{{ receipt.measured_cd }}</td>
+      <td class="{% if receipt.verdict == '合格' %}ok{% else %}bad{% endif %}">{{ receipt.verdict }}</td>
+      <td>{{ receipt.note }}</td>
+      <td>{{ receipt.issued_at|date:"Y-m-d H:i:s" }}</td>
+      <td>{{ receipt.checksum }}</td>
+      <td><a href="{% url 'receipt_detail' receipt.pk %}">打开</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7">还没有签发回执</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<p><a href="{% url 'receipt_book' %}">进入回执册</a> · <a href="{% url 'list' %}">返回列表</a></p>
 {% endblock %}

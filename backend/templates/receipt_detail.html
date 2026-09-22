@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}回执 R-{{ receipt.pk }} · 航标灯光巡检台{% endblock %}
+{% block body %}
+<h1>回执 R-{{ receipt.pk }}</h1>
+<p>以下为签发时存档的正文原文，实测事后改正不影响本张内容。</p>
+<pre class="card">{{ receipt.body }}</pre>
+<p>校验短串：<strong>{{ receipt.checksum }}</strong></p>
+<p><a href="{% url 'receipt_download' receipt.pk %}">下载回执</a> · <a href="{% url 'receipt_book' %}">返回回执册</a></p>
+{% endblock %}
