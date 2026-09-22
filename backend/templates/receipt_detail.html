@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>回执 {{ receipt.serial }}</h1>
+<pre style="background:#fff;padding:16px;white-space:pre-wrap">{{ receipt.body }}</pre>
+<p>
+  <a href="{% url 'receipt_download' receipt.pk %}">下载存档</a> ·
+  <a href="{% url 'receipt_book' receipt.inspection_id %}">返回回执册</a>
+</p>
+{% endblock %}

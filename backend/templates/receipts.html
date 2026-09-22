@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ row.aid_code }} 的回执册</h1>
+<p>当前实测光强 {{ row.measured_cd }}，{{ row.verdict }} · {{ row.note }}</p>
+{% if can_write %}
+<form method="post" action="{% url 'issue_receipt' row.pk %}">
+  {% csrf_token %}
+  <button type="submit">签发回执</button>
+</form>
+{% endif %}
+<table>
+  <thead>
+    <tr><th>回执编号</th><th>签发时刻</th><th>实测光强</th><th>判词</th><th>附言</th><th>校验短串</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for receipt in receipts %}
+    <tr>
+      <td>{{ receipt.serial }}</td>
+      <td>{{ receipt.issued_at }}</td>
+      <td>{{ receipt.measured_cd }}</td>
+      <td class="{% if receipt.verdict == '合格' %}ok{% else %}bad{% endif %}">{{ receipt.verdict }}</td>
+      <td>{{ receipt.note }}</td>
+      <td><code>{{ receipt.checksum }}</code></td>
+      <td>
+        <a href="{% url 'receipt_detail' receipt.pk %}">查看</a>
+        <a href="{% url 'receipt_download' receipt.pk %}">下载</a>
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7">还没有签发回执</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p><a href="{% url 'detail' row.pk %}">返回详情</a></p>
+{% endblock %}

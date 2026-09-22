@@ -1,9 +1,11 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from inspection.models import Inspection
+from inspection.models import Inspection, Receipt
+from inspection.receipts import new_serial, render_body
 from inspection.rules import judge
 
 
@@ -84,3 +86,80 @@ def create_view(request):
             )
             return redirect("detail", pk=row.pk)
     return render(request, "form.html", {"error": error})
+
+
+@login_required
+@require_http_methods(["POST"])
+def correct_view(request, pk):
+    if not _can_write(request.user):
+        return HttpResponseForbidden("仅持灯账号可改正实测")
+    row = get_object_or_404(Inspection, pk=pk)
+    try:
+        measured = float(request.POST["measured_cd"])
+    except (KeyError, ValueError):
+        return render(
+            request,
+            "detail.html",
+            {"row": row, "error": "改正亮度要填数值"},
+            status=400,
+        )
+    row.measured_cd = measured
+    row.verdict, row.note = judge(measured, row.required_cd, row.bearing_error_deg)
+    row.save()
+    return redirect("detail", pk=pk)
+
+
+@login_required
+@require_http_methods(["POST"])
+def issue_receipt(request, pk):
+    if not _can_write(request.user):
+        return HttpResponseForbidden("仅持灯账号可签发回执")
+    row = get_object_or_404(Inspection, pk=pk)
+    issued_at = timezone.now()
+    serial = new_serial()
+    body, checksum = render_body(
+        serial=serial,
+        aid_code=row.aid_code,
+        measured_cd=row.measured_cd,
+        required_cd=row.required_cd,
+        bearing_error_deg=row.bearing_error_deg,
+        verdict=row.verdict,
+        note=row.note,
+        issued_by=request.user.username,
+        issued_at=issued_at,
+    )
+    receipt = Receipt.objects.create(
+        inspection=row,
+        serial=serial,
+        aid_code=row.aid_code,
+        measured_cd=row.measured_cd,
+        required_cd=row.required_cd,
+        bearing_error_deg=row.bearing_error_deg,
+        verdict=row.verdict,
+        note=row.note,
+        body=body,
+        checksum=checksum,
+        issued_by=request.user.username,
+        issued_at=issued_at,
+    )
+    return redirect("receipt_detail", pk=receipt.pk)
+
+
+@login_required
+def receipt_book(request, pk):
+    row = get_object_or_404(Inspection, pk=pk)
+    return render(request, "receipts.html", {"row": row, "receipts": row.receipts.all()})
+
+
+@login_required
+def receipt_detail(request, pk):
+    receipt = get_object_or_404(Receipt, pk=pk)
+    return render(request, "receipt_detail.html", {"receipt": receipt})
+
+
+@login_required
+def receipt_download(request, pk):
+    receipt = get_object_or_404(Receipt, pk=pk)
+    response = HttpResponse(receipt.body, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{receipt.serial}.txt"'
+    return response

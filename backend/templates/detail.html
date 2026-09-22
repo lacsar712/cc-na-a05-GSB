@@ -4,5 +4,14 @@
 <p class="{% if row.verdict == '合格' %}ok{% else %}bad{% endif %}">{{ row.verdict }} · {{ row.note }}</p>
 <p>实测光强 {{ row.measured_cd }}，要求 {{ row.required_cd }}，方位偏差 {{ row.bearing_error_deg }} 度</p>
 <p>登记人 {{ row.created_by }}</p>
-<p><a href="{% url 'list' %}">返回列表</a></p>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+{% if can_write %}
+<form class="card" method="post" action="{% url 'correct' row.pk %}">
+  {% csrf_token %}
+  <label>改正实测光强（坎德拉）</label>
+  <input name="measured_cd" type="number" step="0.1" value="{{ row.measured_cd }}" />
+  <button type="submit">改正亮度</button>
+</form>
+{% endif %}
+<p><a href="{% url 'receipt_book' row.pk %}">回执册</a> · <a href="{% url 'list' %}">返回列表</a></p>
 {% endblock %}
